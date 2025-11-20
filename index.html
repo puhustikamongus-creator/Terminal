@@ -1,20 +1,104 @@
-{
-  "name": "Терминал 100₽",
-  "short_name": "Терминал",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "icons": [
-    {
-      "src": "icon.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon.png",
-      "sizes": "512x512",
-      "type": "image/png"
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Терминал 100₽</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.png">
+  <style>
+    body {margin:0;background:#000;color:#0f0;font-family:'Courier New',monospace;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;}
+    h1 {font-size:10vw;margin:0;letter-spacing:5px;}
+    #info {font-size:7vw;margin-top:30px;opacity:0.8;}
+    #pin {margin-top:40px;background:#000;color:#0f0;border:3px solid #0f0;font-size:10vw;padding:15px;width:80%;text-align:center;letter-spacing:20px;font-family:monospace;caret-color:transparent;}
+    #result {position:fixed;top:0;left:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;font-size:15vw;background:rgba(0,50,0,0.95);opacity:0;transition:opacity 0.5s;z-index:10;}
+    .red {background:rgba(50,0,0,0.95)!important;color:#f00;}
+    .hidden {display:none;}
+  </style>
+</head>
+<body>
+  <h1>ОПЛАТА 100 РУБЛЕЙ</h1>
+  <div id="info">Поднесите карту</div>
+  <input type="password" id="pin" maxlength="4" inputmode="numeric" class="hidden" placeholder="____">
+  
+  <div id="result" class="hidden"></div>
+
+  <audio id="beep" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-100rub-app@main/beep.mp3"></audio>
+  <audio id="success" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-100rub-app@main/success.mp3"></audio>
+  <audio id="error" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-100rub-app@main/error.mp3"></audio>
+
+  <script>
+    const info = document.getElementById('info');
+    const pin = document.getElementById('pin');
+    const result = document.getElementById('result');
+    const beep = document.getElementById('beep');
+    const success = document.getElementById('success');
+    const error = document.getElementById('error');
+
+    if ('NDEFReader' in window) {
+      const ndef = new NDEFReader();
+
+      async function scan() {
+        try {
+          await ndef.scan();
+          info.textContent = "Готово. Введите ПИН";
+          ndef.onreading = () => {
+            beep.play();
+            info.classList.add('hidden');
+            pin.classList.remove('hidden');
+            pin.focus();
+            pin.value = '';
+          };
+        } catch(e) {
+          info.textContent = "NFC ошибка";
+        }
+      }
+
+      pin.addEventListener('input', function() {
+        if (this.value.length === 4) {
+          if (this.value === '1010') {
+            result.textContent = "СПИСАНО\n100 ₽";
+            result.classList.remove('red');
+            result.classList.remove('hidden');
+            result.style.opacity = 1;
+            success.play();
+            navigator.vibrate([200, 100, 200]);
+            setTimeout(reset, 2500);
+          } else {
+            result.textContent = "ОТКАЗ";
+            result.classList.add('red');
+            result.classList.remove('hidden');
+            result.style.opacity = 1;
+            error.play();
+            navigator.vibrate(600);
+            setTimeout(() => {
+              result.style.opacity = 0;
+              pin.value = '';
+              pin.focus();
+            }, 2000);
+          }
+        }
+      });
+
+      function reset() {
+        result.style.opacity = 0;
+        setTimeout(() => {
+          result.classList.add('hidden');
+          info.classList.remove('hidden');
+          info.textContent = "Поднесите карту";
+          pin.classList.add('hidden');
+          scan();
+        }, 600);
+      }
+
+      scan();
+    } else {
+      info.textContent = "NFC не поддерживается";
     }
-  ]
-}
+  </script>
+</body>
+</html>
