@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Оплата 100 ₽ • NFC терминал</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      background: #000;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      user-select: none;
+    }
+    .big { font-size: 9vw; font-weight: bold; letter-spacing: 4px; }
+    .status { margin-top: 40px; font-size: 6vw; min-height: 120px; text-align: center; }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+    .success { color: #00ff00; font-size: 10vw; }
+  </style>
+</head>
+<body>
+  <div class="big">ОПЛАТА 100 ₽</div>
+  <div id="msg" class="status pulse">ПОДНЕСИТЕ КАРТУ</div>
+
+  <audio id="beep" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-100rub-terminal@sound/beep-08b.mp3"></audio>
+  <audio id="success" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-100rub-terminal@sound/success-1.mp3"></audio>
+
+  <script>
+    const msg = document.getElementById("msg");
+    const beep = document.getElementById("beep");
+    const success = document.getElementById("success");
+
+    if ('NDEFReader' in window) {
+      const ndef = new NDEFReader();
+
+      async function start() {
+        try {
+          await ndef.scan();
+          msg.textContent = "ГОТОВО К ОПЛАТЕ";
+          msg.classList.remove("pulse");
+
+          ndef.onreading = () => {
+            beep.play();
+            setTimeout(() => {
+              msg.classList.add("success");
+              msg.innerHTML = "СПИСАНО<br>100 ₽";
+              success.play();
+              if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+              
+              setTimeout(() => {
+                msg.classList.remove("success");
+                msg.innerHTML = "ПОДНЕСИТЕ КАРТУ";
+                msg.classList.add("pulse");
+              }, 3000);
+            }, 600);
+          };
+        } catch (e) {
+          msg.textContent = "ОШИБКА NFC";
+        }
+      }
+
+      start();
+      document.body.onclick = start;
+    } else {
+      msg.textContent = "NFC НЕ ПОДДЕРЖИВАЕТСЯ";
+    }
+  </script>
+</body>
+</html>
