@@ -1,110 +1,79 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NFC Терминал • ПИН 1010</title>
-  <style>
-    body {margin:0;height:100vh;background:#000;color:#0f0;font-family:'Courier New',monospace;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow:hidden;}
-    .big {font-size:9vw;font-weight:bold;letter-spacing:5px;}
-    .msg {margin-top:40px;font-size:6vw;text-align:center;min-height:150px;}
-    .pulse {animation:pulse 2s infinite;}
-    @keyframes pulse {0%,100%{opacity:0.5}50%{opacity:1}}
-    input {background:#000;color:#0f0;border:2px solid #0f0;font-size:8vw;padding:10px 20px;letter-spacing:15px;text-align:center;font-family:monospace;margin-top:30px;}
-    .hidden {display:none;}
-    .error {color:#f00 !important;}
-    .success {color:#0f0;font-size:10vw;}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>NFC 100₽</title>
+<style>
+  body{margin:0;height:100vh;background:#000;overflow:hidden;display:flex;justify-content:center;align-items:center;}
+  #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Courier New',monospace;font-size:15vw;color:#0f0;opacity:0;transition:opacity .3s;}
+  input{position:absolute;opacity:0;pointer-events:none;}
+  .green flash{animation:flash-green 1.5s;}
+  .red flash{animation:flash-red 2s;}
+  @keyframes flash-green{background:#003300;opacity:1;}
+  @keyframes flash-red{background:#330000;opacity:1;}
+</style>
 </head>
 <body>
-  <div class="big">ОПЛАТА 100 ₽</div>
-  <div id="status" class="msg pulse">ПОДНЕСИТЕ КАРТУ</div>
 
-  <div id="pinpad" class="hidden">
-    <div style="font-size:6vw;margin-bottom:20px;">ВВЕДИТЕ ПИН-КОД</div>
-    <input type="password" id="pin" maxlength="4" inputmode="numeric" autocomplete="off">
-    <div style="margin-top:20px;font-size:4vw;color:#666;">Подсказка: 1010</div>
-  </div>
+<div id="msg"></div>
+<input type="text" id="pin" autofocus>
 
-  <audio id="beep" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-100rub-pin-terminal@main/beep.mp3"></audio>
-  <audio id="ok" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-100rub-pin-terminal@main/ok.mp3"></audio>
-  <audio id="error" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-100rub-pin-terminal@main/error.mp3"></audio>
+<audio id="beep" src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-stealth-terminal@main/beep.mp3"></audio>
+<audio id="ok"   src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-stealth-terminal@main/ok.mp3"></audio>
+<audio id="err"  src="https://cdn.jsdelivr.net/gh/nfc-tools/nfc-stealth-terminal@main/err.mp3"></audio>
 
-  <script>
-    const status = document.getElementById("status");
-    const pinpad = document.getElementById("pinpad");
-    const pinInput = document.getElementById("pin");
-    const beep = document.getElementById("beep");
-    const ok = document.getElementById("ok");
-    const error = document.getElementById("error");
+<script>
+const msg  = document.getElementById('msg');
+const pin  = document.getElementById('pin');
+const beep = document.getElementById('beep');
+const ok   = document.getElementById('ok');
+const err  = document.getElementById('err');
 
-    const CORRECT_PIN = "1010";
+const PIN = '1010';
+let buffer = '';
 
-    if ('NDEFReader' in window) {
-      const ndef = new NDEFReader();
+if ('NDEFReader' in window) {
+  const ndef = new NDEFReader();
+  ndef.scan();
 
-      async function start() {
-        try {
-          await ndef.scan();
-          status.textContent = "КАРТА ОБНАРУЖЕНА";
-          status.classList.remove("pulse");
-          beep.play();
+  ndef.onreading = () => {
+    beep.currentTime = 0;
+    beep.play();
+    pin.focus();
+    buffer = '';
+  };
+}
 
-          setTimeout(() => {
-            status.classList.add("hidden");
-            pinpad.classList.remove("hidden");
-            pinInput.focus();
-          }, 800);
-
-        } catch(e) { status.textContent = "ОШИБКА NFC"; }
-      }
-
-      ndef.onreading = () => start();
-
-      // Ввод ПИНа
-      pinInput.addEventListener("input", () => {
-        if (pinInput.value.length === 4) {
-          if (pinInput.value === CORRECT_PIN) {
-            pinpad.classList.add("hidden");
-            status.classList.remove("hidden");
-            status.innerHTML = "СПИСАНО<br>100 ₽";
-            status.classList.add("success");
-            ok.play();
-            if ("vibrate" in navigator) navigator.vibrate([200,100,200]);
-            setTimeout(reset, 3000);
-          } else {
-            error.play();
-            pinpad.style.color = "#f00";
-            status.classList.remove("hidden");
-            status.textContent = "ОТКАЗ В ОПЛАТЕ";
-            status.classList.add("error");
-            pinInput.value = "";
-            if ("vibrate" in navigator) navigator.vibrate(500);
-            setTimeout(() => {
-              pinpad.style.color = "#0f0";
-              status.classList.add("hidden");
-              pinpad.classList.remove("hidden");
-              pinInput.focus();
-            }, 2000);
-          }
-        }
-      });
-
-      function reset() {
-        pinpad.classList.add("hidden");
-        status.classList.remove("hidden", "success", "error");
-        status.textContent = "ПОДНЕСИТЕ КАРТУ";
-        status.classList.add("pulse");
-        pinInput.value = "";
-        start();
-      }
-
-      start();
-      document.body.onclick = () => pinInput.focus();
-
+pin.addEventListener('input', () => {
+  buffer += pin.value;
+  pin.value = '';
+  
+  if (buffer.length === 4) {
+    if (buffer === PIN) {
+      document.body.style.background = '#003300';
+      msg.textContent = 'СПИСАНО 100 ₽';
+      msg.style.opacity = 1;
+      ok.play();
+      navigator.vibrate([200,100,200]);
+      setTimeout(reset, 2000);
     } else {
-      status.textContent = "NFC НЕ ПОДДЕРЖИВАЕТСЯ";
+      document.body.style.background = '#330000';
+      msg.textContent = 'ОТКАЗ';
+      msg.style.opacity = 1;
+      err.play();
+      navigator.vibrate(800);
+      setTimeout(reset, 2000);
     }
-  </script>
+    buffer = '';
+  }
+});
+
+function reset() {
+  document.body.style.background = '#000';
+  msg.style.opacity = 0;
+  msg.textContent = '';
+}
+</script>
 </body>
 </html>
